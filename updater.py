@@ -17,7 +17,7 @@ from logger_setup import logger
 
 
 # GitHub repo za aplikaciju (promeni na svoj repo)
-GITHUB_REPO = "tvoj-username/TalasDownloader"
+GITHUB_REPO = "Cincao93k/TalasDownloader"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 # Fallback — lokalni version.json (ako nema GitHub)
