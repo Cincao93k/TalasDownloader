@@ -1,0 +1,24 @@
+[12:27:13] [INFO] ==================================================
+[12:27:13] [INFO] Talas Downloader se pokreće...
+[12:27:15] [INFO] GUI pokrenut.
+[12:27:15] [INFO] Proveravam ažuriranja... Trenutna verzija: 1.0.0
+[12:27:16] [WARNING] Nije moguće proveriti ažuriranja (GitHub): 404 Client Error: Not Found for url: https://api.github.com/repos/tvoj-username/TalasDownloader/releases/latest
+[12:27:17] [INFO] yt-dlp: trenutna=2026.03.17, najnovija=2026.03.17
+[12:27:42] [INFO] Cache očišćen.
+[12:27:42] [INFO] Aplikacija zatvorena.
+[12:54:05] [INFO] ==================================================
+[12:54:05] [INFO] Talas Downloader se pokreće...
+[12:54:06] [INFO] GUI pokrenut.
+[12:54:06] [INFO] Proveravam ažuriranja... Trenutna verzija: 1.0.0
+[12:54:07] [WARNING] Nije moguće proveriti ažuriranja (GitHub): 404 Client Error: Not Found for url: https://api.github.com/repos/tvoj-username/TalasDownloader/releases/latest
+[12:54:08] [INFO] yt-dlp: trenutna=2026.03.17, najnovija=2026.03.17
+[12:54:14] [INFO] Fetchujem info za: https://www.youtube.com/watch?v=haPc_eMzuF8
+[12:54:14] [INFO] FFmpeg pronađen: C:\Users\krist\TalasDownloader\ffmpeg\ffmpeg.exe
+[12:54:17] [INFO] Video pronađen: Bandra - Hokage (Official Video) (124s)
+[12:54:17] [INFO] Thumbnail preuzet: C:\Users\krist\TalasDownloader\cache\thumbnail_temp.jpg
+[12:54:20] [INFO] Počinjem download: https://www.youtube.com/watch?v=haPc_eMzuF8 [mp3/best]
+[12:54:20] [INFO] FFmpeg pronađen: C:\Users\krist\TalasDownloader\ffmpeg\ffmpeg.exe
+[12:54:20] [INFO] FFmpeg pronađen: C:\Users\krist\TalasDownloader\ffmpeg\ffmpeg.exe
+[12:54:24] [INFO] Download završen: C:\Users\krist\Downloads\Bandra - Hokage (Official Video).mp3
+[12:55:00] [INFO] Cache očišćen.
+[12:55:00] [INFO] Aplikacija zatvorena.
