@@ -21,7 +21,7 @@ GITHUB_REPO = "Cincao93k/TalasDownloader"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
 # Fallback — lokalni version.json (ako nema GitHub)
-LOCAL_VERSION_URL = "https://raw.githubusercontent.com/tvoj-username/TalasDownloader/main/version.json"
+LOCAL_VERSION_URL = "https://raw.githubusercontent.com/Cincao93k/TalasDownloader/main/version.json"
 
 
 def get_current_version() -> str:
