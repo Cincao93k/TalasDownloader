@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import (
     Qt, QThread, Signal, QObject, QTimer, QSize, QPropertyAnimation,
-    QEasingCurve
+    QEasingCurve, QUrl
 )
 from PySide6.QtGui import (
     QPixmap, QFont, QIcon, QColor, QPalette, QFontDatabase,
@@ -315,7 +315,7 @@ class FetchThread(QThread):
             self.finished.emit(info)
         except Exception as e:
             import traceback
-            traceback.print_exc()   # ← ovo ispisuje grešku u konzolu
+            traceback.print_exc()
             self.error.emit(str(e))
 
 
@@ -358,7 +358,6 @@ class ThumbnailWidget(QLabel):
                 self._show_placeholder()
                 return
             
-            # Skaliranje uz zadržavanje proporcija
             scaled = pixmap.scaled(
                 self.width() - 30, self.height() - 20,
                 Qt.KeepAspectRatio,
@@ -392,12 +391,17 @@ class TalasMainWindow(QMainWindow):
     _finished_signal = Signal(str)
     _error_signal = Signal(str)
     
+    # FIX: Signal za update dialog — jedini thread-safe način
+    # da se pozove GUI iz pozadinskog threada
+    _update_available_signal = Signal(dict)
+    
     def __init__(self):
         super().__init__()
         
         self.video_info = None
         self.download_worker = None
         self.fetch_thread = None
+        self._pending_update = None
         
         # Podrazumevani folder za skidanje
         self.download_folder = os.path.expanduser("~/Downloads")
@@ -413,13 +417,11 @@ class TalasMainWindow(QMainWindow):
         self.setMinimumSize(600, 780)
         self.resize(680, 860)
         
-        # Centriraj prozor na ekranu
         screen = QApplication.primaryScreen().geometry()
         x = (screen.width() - 680) // 2
         y = (screen.height() - 860) // 2
         self.move(x, y)
         
-        # Postavi ikonicu ako postoji
         icon_path = self._get_asset("icon.ico")
         if icon_path and os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
@@ -436,16 +438,13 @@ class TalasMainWindow(QMainWindow):
     def _build_ui(self):
         """Izgradnja kompletnog UI-a."""
         
-        # Centralni widget sa scroll
         central = QWidget()
         self.setCentralWidget(central)
         
-        # Glavni layout
         main_layout = QVBoxLayout(central)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
         
-        # Scroll area za sadržaj
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -458,43 +457,33 @@ class TalasMainWindow(QMainWindow):
         content_layout.setContentsMargins(40, 40, 40, 40)
         content_layout.setSpacing(0)
         
-        # ---- HEADER ----
         self._build_header(content_layout)
         content_layout.addSpacing(30)
         
-        # ---- URL INPUT ----
         self._build_url_section(content_layout)
         content_layout.addSpacing(24)
         
-        # ---- FORMAT & QUALITY ----
         self._build_format_quality(content_layout)
         content_layout.addSpacing(24)
         
-        # ---- FIND VIDEO DUGME ----
         self._build_find_button(content_layout)
         content_layout.addSpacing(28)
         
-        # ---- SEPARATOR ----
         self._add_separator(content_layout)
         content_layout.addSpacing(28)
         
-        # ---- THUMBNAIL & VIDEO INFO ----
         self._build_video_info(content_layout)
         content_layout.addSpacing(24)
         
-        # ---- SAVE FOLDER ----
         self._build_folder_section(content_layout)
         content_layout.addSpacing(24)
         
-        # ---- DOWNLOAD DUGME ----
         self._build_download_button(content_layout)
         content_layout.addSpacing(20)
         
-        # ---- PROGRESS ----
         self._build_progress(content_layout)
         content_layout.addSpacing(30)
         
-        # Stretch na kraju
         content_layout.addStretch(1)
         
         scroll.setWidget(content_widget)
@@ -561,7 +550,6 @@ class TalasMainWindow(QMainWindow):
         row_layout = QHBoxLayout()
         row_layout.setSpacing(16)
         
-        # Format grupa
         format_group = QGroupBox("FORMAT")
         format_group.setMinimumWidth(160)
         format_layout = QVBoxLayout(format_group)
@@ -581,7 +569,6 @@ class TalasMainWindow(QMainWindow):
         
         row_layout.addWidget(format_group)
         
-        # Kvalitet grupa
         quality_group = QGroupBox("KVALITET (samo za MP4)")
         quality_layout = QVBoxLayout(quality_group)
         quality_layout.setSpacing(8)
@@ -605,7 +592,6 @@ class TalasMainWindow(QMainWindow):
         
         layout.addLayout(row_layout)
         
-        # Disable quality kada je MP3 izabran
         self.radio_mp3.toggled.connect(self._on_format_changed)
         self._on_format_changed(True)
     
@@ -656,12 +642,10 @@ class TalasMainWindow(QMainWindow):
         layout.addWidget(label)
         layout.addSpacing(10)
         
-        # Thumbnail
         self.thumbnail = ThumbnailWidget()
         layout.addWidget(self.thumbnail)
         layout.addSpacing(12)
         
-        # Naslov videa
         self.video_title_label = QLabel("")
         self.video_title_label.setAlignment(Qt.AlignCenter)
         self.video_title_label.setWordWrap(True)
@@ -679,7 +663,6 @@ class TalasMainWindow(QMainWindow):
         
         layout.addSpacing(6)
         
-        # Trajanje / info
         self.video_meta_label = QLabel("")
         self.video_meta_label.setAlignment(Qt.AlignCenter)
         self.video_meta_label.setStyleSheet("""
@@ -756,7 +739,6 @@ class TalasMainWindow(QMainWindow):
     def _build_progress(self, layout: QVBoxLayout):
         """Progress bar i status tekst."""
         
-        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
@@ -766,7 +748,6 @@ class TalasMainWindow(QMainWindow):
         layout.addWidget(self.progress_bar)
         layout.addSpacing(12)
         
-        # Status tekst i brzina
         status_row = QHBoxLayout()
         
         self.status_label = QLabel("Spreman")
@@ -797,30 +778,29 @@ class TalasMainWindow(QMainWindow):
     def _connect_signals(self):
         """Poveži sve signale sa slotovima."""
         
-        # Dugmići
         self.find_btn.clicked.connect(self._on_find_video)
         self.browse_btn.clicked.connect(self._on_browse_folder)
         self.download_btn.clicked.connect(self._on_download)
         self.stop_btn.clicked.connect(self._on_stop_download)
         
-        # URL input — Enter key
         self.url_input.returnPressed.connect(self._on_find_video)
-        
-        # Format change
         self.radio_mp4.toggled.connect(self._on_format_changed)
         
-        # Thread-safe signali
         self._progress_signal.connect(self._update_progress)
         self._status_signal.connect(self._update_status)
         self._finished_signal.connect(self._on_download_finished)
         self._error_signal.connect(self._on_download_error)
+        
+        # FIX: Poveži update signal — poziva se u GUI threadu
+        self._update_available_signal.connect(self._show_update_dialog)
     
     def _check_updates(self):
         """Proveri ažuriranja u pozadini pri pokretanju."""
         
         def on_app_update(update_info: dict):
-            # Pozovi u GUI thread-u
-            QTimer.singleShot(0, lambda: self._show_update_dialog(update_info))
+            # FIX: Emituj signal umesto direktnog poziva GUI-a iz threada
+            # Signal je thread-safe i automatski se izvršava u GUI threadu
+            self._update_available_signal.emit(update_info)
         
         def on_ytdlp_update():
             logger.info("yt-dlp ažuriranje dostupno")
@@ -846,8 +826,9 @@ class TalasMainWindow(QMainWindow):
         
         msg.exec()
         
+        # FIX: QUrl() wrapper je neophodan za QDesktopServices
         if msg.clickedButton() == download_btn and update_info.get('url'):
-            QDesktopServices.openUrl(update_info['url'])
+            QDesktopServices.openUrl(QUrl(update_info['url']))
     
     # ============================================================
     # AKCIJE — Find Video
@@ -866,19 +847,16 @@ class TalasMainWindow(QMainWindow):
             self._show_error("Link mora počinjati sa http:// ili https://")
             return
         
-        # Reset UI
         self.video_info = None
         self.thumbnail.clear_thumbnail()
         self.video_title_label.setText("")
         self.video_meta_label.setText("")
         self.download_btn.setEnabled(False)
         
-        # Prikaži loading status
         self._set_status("Učitavam video...", "#4a90d9")
         self.find_btn.setEnabled(False)
         self.find_btn.setText("⏳  Učitavam...")
         
-        # Pokre fetchovanje u thread-u
         self.fetch_thread = FetchThread(url)
         self.fetch_thread.finished.connect(self._on_fetch_finished)
         self.fetch_thread.error.connect(self._on_fetch_error)
@@ -889,17 +867,14 @@ class TalasMainWindow(QMainWindow):
         
         self.video_info = video_info
         
-        # Prikaži thumbnail
         if video_info.thumbnail_path:
             self.thumbnail.set_thumbnail(video_info.thumbnail_path)
         
-        # Prikaži naslov
         title = video_info.title
         if len(title) > 80:
             title = title[:77] + "..."
         self.video_title_label.setText(title)
         
-        # Prikaži trajanje i uploader
         duration_str = format_duration(video_info.duration)
         meta_parts = []
         if duration_str != "Nepoznato":
@@ -909,11 +884,9 @@ class TalasMainWindow(QMainWindow):
         
         self.video_meta_label.setText("   ".join(meta_parts))
         
-        # Enable download
         self.download_btn.setEnabled(True)
         self._set_status("Video pronađen! Spreman za preuzimanje.", "#1aad6a")
         
-        # Reset find button
         self.find_btn.setEnabled(True)
         self.find_btn.setText("🔍  Pronađi Video")
     
@@ -954,7 +927,6 @@ class TalasMainWindow(QMainWindow):
             self._show_error("Najpre pronađite video.")
             return
         
-        # Proveri folder
         if not os.path.isdir(self.download_folder):
             try:
                 os.makedirs(self.download_folder, exist_ok=True)
@@ -962,7 +934,6 @@ class TalasMainWindow(QMainWindow):
                 self._show_error(f"Nije moguće kreirati folder:\n{self.download_folder}")
                 return
         
-        # Odredi format i kvalitet
         if self.radio_mp3.isChecked():
             fmt = "mp3"
             quality = "best"
@@ -975,14 +946,12 @@ class TalasMainWindow(QMainWindow):
             else:
                 quality = "4k"
         
-        # UI u download mod
         self.download_btn.setEnabled(False)
         self.find_btn.setEnabled(False)
         self.stop_btn.setVisible(True)
         self.progress_bar.setValue(0)
         self._set_status("Priprema preuzimanje...", "#4a90d9")
         
-        # Kreiraj i pokrni worker
         self.download_worker = DownloadWorker(
             url=self.video_info.url,
             output_dir=self.download_folder,
@@ -990,7 +959,6 @@ class TalasMainWindow(QMainWindow):
             quality=quality
         )
         
-        # Postavi callbacks (pozivaju se iz worker thread-a)
         self.download_worker.on_progress = self._progress_callback
         self.download_worker.on_status = self._status_callback
         self.download_worker.on_finished = self._finished_callback
@@ -1009,7 +977,6 @@ class TalasMainWindow(QMainWindow):
     
     # ============================================================
     # CALLBACKS — pozivaju se iz worker thread-a
-    # Emituju signale za thread-safe GUI ažuriranje
     # ============================================================
     
     def _progress_callback(self, percent: float, speed: str, eta: str):
@@ -1049,7 +1016,6 @@ class TalasMainWindow(QMainWindow):
         self._set_status("✅  Preuzimanje završeno!", "#1aad6a")
         self.speed_label.setText("")
         
-        # Prikaži poruku
         msg = QMessageBox(self)
         msg.setWindowTitle("Završeno! 🎉")
         msg.setIcon(QMessageBox.Information)
@@ -1066,7 +1032,7 @@ class TalasMainWindow(QMainWindow):
         
         if msg.clickedButton() == open_btn:
             folder = os.path.dirname(filepath) if os.path.isfile(filepath) else filepath
-            QDesktopServices.openUrl(f"file:///{folder}")
+            QDesktopServices.openUrl(QUrl(f"file:///{folder}"))
     
     def _on_download_error(self, message: str):
         """Download greška."""
@@ -1111,16 +1077,13 @@ class TalasMainWindow(QMainWindow):
     def closeEvent(self, event):
         """Čisti cache i zatvara aplikaciju."""
         
-        # Zaustavi aktivni download
         if self.download_worker and self.download_worker.is_alive():
             self.download_worker.stop()
         
-        # Zaustavi fetch thread
         if self.fetch_thread and self.fetch_thread.isRunning():
             self.fetch_thread.quit()
             self.fetch_thread.wait(2000)
         
-        # Obriši cache
         clear_cache()
         
         logger.info("Aplikacija zatvorena.")
