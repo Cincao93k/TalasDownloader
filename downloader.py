@@ -27,8 +27,7 @@ def get_ffmpeg_path():
     """
     # Putanja do ffmpeg bundlovanog sa aplikacijom
     if getattr(sys, 'frozen', False):
-        # Pokrenuto kao PyInstaller .exe
-        base_dir = os.path.dirname(sys.executable)
+        base_dir = sys._MEIPASS
     else:
         # Pokrenuto kao Python skript
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,11 +64,10 @@ def get_ffprobe_path():
 def get_cache_dir():
     """Vrati putanju do cache foldera."""
     if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
+        cache_dir = os.path.join(os.environ['APPDATA'], 'TalasDownloader', 'cache')
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
     
-    cache_dir = os.path.join(base_dir, "cache")
     os.makedirs(cache_dir, exist_ok=True)
     return cache_dir
 
@@ -325,15 +323,49 @@ class DownloadWorker(threading.Thread):
             }]
             
         elif self.format_type == "mp4":
-            # MP4 konfiguracija na osnovu kvaliteta
+            # -------------------------------------------------------
+            # FIX: Forsiramo H.264 (avc1) kodek umesto AV1 (av01)
+            # kako bi video bio kompatibilan sa Premiere Pro i ostalim
+            # video editorima koji ne podržavaju AV1.
+            #
+            # Format string logika (yt-dlp ih proba redom):
+            #   1. Uzmi H.264 video + AAC audio (idealno za editore)
+            #   2. Ako nema H.264 u toj rezoluciji, uzmi bilo koji H.264
+            #   3. Ako uopšte nema H.264, uzmi mp4 stream
+            #   4. Poslednji izbor: bilo šta dostupno
+            # -------------------------------------------------------
+
             if self.quality == "720p":
-                opts['format'] = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=720]+bestaudio/best[height<=720]'
+                opts['format'] = (
+                    'bestvideo[vcodec^=avc1][height<=720]+bestaudio[acodec^=mp4a]/'
+                    'bestvideo[vcodec^=avc1][height<=720]+bestaudio/'
+                    'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/'
+                    'bestvideo[height<=720]+bestaudio/'
+                    'best[height<=720]'
+                )
             elif self.quality == "1080p":
-                opts['format'] = 'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=1080]+bestaudio/best[height<=1080]'
+                opts['format'] = (
+                    'bestvideo[vcodec^=avc1][height<=1080]+bestaudio[acodec^=mp4a]/'
+                    'bestvideo[vcodec^=avc1][height<=1080]+bestaudio/'
+                    'bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/'
+                    'bestvideo[height<=1080]+bestaudio/'
+                    'best[height<=1080]'
+                )
             elif self.quality in ("4k", "best"):
-                opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best'
+                opts['format'] = (
+                    'bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/'
+                    'bestvideo[vcodec^=avc1]+bestaudio/'
+                    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/'
+                    'bestvideo+bestaudio/'
+                    'best'
+                )
             else:
-                opts['format'] = 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best'
+                opts['format'] = (
+                    'bestvideo[vcodec^=avc1]+bestaudio[acodec^=mp4a]/'
+                    'bestvideo[vcodec^=avc1]+bestaudio/'
+                    'bestvideo[ext=mp4]+bestaudio[ext=m4a]/'
+                    'best'
+                )
             
             # Spoji video i audio u MP4
             opts['postprocessors'] = [{
@@ -412,3 +444,4 @@ class DownloadWorker(threading.Thread):
             
             if self.on_error:
                 self.on_error(f"Greška:\n{str(e)[:300]}")
+                

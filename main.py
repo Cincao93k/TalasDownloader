@@ -12,12 +12,16 @@ import os
 def create_app_dirs():
     """Kreiraj sve potrebne foldere."""
     if getattr(sys, 'frozen', False):
-        base = os.path.dirname(sys.executable)
+        # Kada je instalirana - koristi AppData
+        base = os.path.join(os.environ['APPDATA'], 'TalasDownloader')
     else:
+        # Kada se razvija lokalno
         base = os.path.dirname(os.path.abspath(__file__))
     
     for folder in ["cache", "downloads", "temp", "logs", "assets"]:
         os.makedirs(os.path.join(base, folder), exist_ok=True)
+    
+    return base
 
 create_app_dirs()
 

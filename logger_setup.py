@@ -7,14 +7,19 @@ Loguje u fajl i konzolu istovremeno.
 
 import logging
 import os
+import sys
 from datetime import datetime
 
 
 def setup_logger():
     """Kreira i konfiguriše centralni logger."""
     
-    # Napravi logs folder ako ne postoji
-    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    # Napravi logs folder u AppData kada je instalirana, lokalno kada se razvija
+    if getattr(sys, 'frozen', False):
+        logs_dir = os.path.join(os.environ['APPDATA'], 'TalasDownloader', 'logs')
+    else:
+        logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+    
     os.makedirs(logs_dir, exist_ok=True)
     
     # Ime log fajla sa datumom

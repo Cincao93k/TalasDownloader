@@ -1,5 +1,6 @@
 {
-  "version": "1.0.0",
-  "release_date": "2026-05-17",
-  "changelog": "Initial release of Talas Downloader"
+  "version": "1.1.0",
+  "release_date": "2026-05-22",
+  "download_url": "https://github.com/Cincao93k/TalasDownloader/releases/download/v1.1.0/TalasInstaller.exe",
+  "changelog": "Fix: Video se sada preuzima u H.264 formatu kompatibilnom sa Premiere Pro i drugim video editorima"
 }
