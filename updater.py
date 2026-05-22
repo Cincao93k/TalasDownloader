@@ -16,7 +16,7 @@ from packaging.version import Version
 from logger_setup import logger
 
 
-# GitHub repo za aplikaciju (promeni na svoj repo)
+# GitHub repo za aplikaciju
 GITHUB_REPO = "Cincao93k/TalasDownloader"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 
@@ -28,7 +28,10 @@ def get_current_version() -> str:
     """Čita trenutnu verziju iz version.json."""
     try:
         if getattr(sys, 'frozen', False):
-            base_dir = os.path.dirname(sys.executable)
+            # FIX: PyInstaller bundluje fajlove u _MEIPASS, ne pored exe-a.
+            # os.path.dirname(sys.executable) pokazuje na folder exe-a,
+            # ali version.json je unutar bundla (_MEIPASS).
+            base_dir = sys._MEIPASS
         else:
             base_dir = os.path.dirname(os.path.abspath(__file__))
         
@@ -36,7 +39,9 @@ def get_current_version() -> str:
         
         with open(version_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            return data.get("version", "1.0.0")
+            version = data.get("version", "1.0.0")
+            logger.info(f"Trenutna verzija iz version.json: {version}")
+            return version
     except Exception as e:
         logger.warning(f"Nije moguće čitati version.json: {e}")
         return "1.0.0"
@@ -81,7 +86,7 @@ def check_app_update() -> dict:
     except requests.RequestException as e:
         logger.warning(f"Nije moguće proveriti ažuriranja (GitHub): {e}")
         
-        # Fallback: pokušaj lokalni version.json sa servera
+        # Fallback: pokušaj version.json sa GitHub raw
         try:
             response = requests.get(LOCAL_VERSION_URL, timeout=8)
             data = response.json()
@@ -174,7 +179,7 @@ def check_all_updates_async(on_app_update=None, on_ytdlp_update=None):
     
     Args:
         on_app_update: Callback(dict) kada postoji nova verzija aplikacije
-        on_ytdlp_update: Callback() kada postoji nova verzija yt-dlp
+        on_ytdlp_update: Callback() kada postoji nova verziju yt-dlp
     """
     def _check():
         try:
