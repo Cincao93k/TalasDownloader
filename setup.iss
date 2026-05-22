@@ -9,7 +9,7 @@
 ; 4. Dobićeš TalasDownloaderSetup.exe u Output/ folderu
 
 #define MyAppName "Talas Downloader"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Talas App"
 #define MyAppURL "https://github.com/tvoj-username/TalasDownloader"
 #define MyAppExeName "TalasDownloader.exe"
